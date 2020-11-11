@@ -212,22 +212,22 @@ done
 #---------------------------------------------------------#
 
 # ------ check home directory ---------- #
-if [ ! -d "$home" ]
+if [ ! -d "${home}" ]
 then
-	echo "home directory $home not exist " >&2
+	echo "home directory ${home} not exist " >&2
 	exit 1
 fi
-home=`$home/readlinkf.sh $home`
+home=`${home}/readlinkf.sh ${home}`
 
 #----------- check input genome  -----------#
-if [ ! -s "$FULLFILE" ]
+if [ ! -s "${FULLFILE}" ]
 then
 	echo "input input_genome is null !!" >&2
 	exit 1
 fi
-FULLFILE=`$home/readlinkf.sh $FULLFILE`
+FULLFILE=`${home}/readlinkf.sh ${FULLFILE}`
 #-> get query_name
-fulnam=`basename $FULLFILE`
+fulnam=`basename ${FULLFILE}`
 relnam=${fulnam%.*}
 
 # ------ check output directory -------- #
@@ -236,7 +236,7 @@ then
 	out_root=${relnam}_DeepSimu
 fi
 mkdir -p $out_root
-out_root=`$home/readlinkf.sh $out_root`
+out_root=`${home}/readlinkf.sh ${out_root}`
 
 
 #--------------------------------------------------------#
@@ -245,7 +245,7 @@ out_root=`$home/readlinkf.sh $out_root`
 
 #------- init process -----------------#
 FILENAME=$out_root
-NUM=$(fgrep -o '>' $FULLFILE | wc -l)
+NUM=$(fgrep -o '>' ${FULLFILE} | wc -l)
 PREFIX="signal"
 PREALI="align"
 
@@ -254,9 +254,9 @@ PREALI="align"
 # store the tmp files
 echo "Pre-process input genome..."
 source activate tensorflow_cdpm
-python2 $home/util/genome_preprocess.py \
-	-i $FULLFILE \
-	-o $FILENAME/processed_genome \
+python2 ${home}/util/genome_preprocess.py \
+	-i ${FULLFILE} \
+	-o ${FILENAME}/processed_genome \
 	-r 1 \
 	-m $SEP
 source deactivate
@@ -273,12 +273,12 @@ fi
 if [ $SAMPLE_NUM -gt 0 ]
 then
 	source activate tensorflow_cdpm
-	for file_processed_genome in `ls $FILENAME/processed_genome*`; do
+	for file_processed_genome in `ls ${FILENAME}/processed_genome*`; do
 		#statements
 		# echo ${file_processed_genome}
-		python2 $home/util/genome_sampling.py \
+		python2 ${home}/util/genome_sampling.py \
 			-i ${file_processed_genome} \
-			-p $FILENAME/sampled_read_"$(basename -- ${file_processed_genome})" \
+			-p ${FILENAME}/sampled_read_"$(basename -- ${file_processed_genome})" \
 			-n $SAMPLE_NUM \
 			-K $COVERAGE \
 			-l $LEN_MEAN \
@@ -288,29 +288,29 @@ then
 	done
 	source deactivate
 else
-	for file_processed_genome in `ls $FILENAME/processed_genome*`; do
+	for file_processed_genome in `ls ${FILENAME}/processed_genome*`; do
 		#statements
 		echo ${file_processed_genome}
-		cp ${file_processed_genome} $FILENAME/sampled_read_"$(basename -- ${file_processed_genome})".fasta
+		cp ${file_processed_genome} ${FILENAME}/sampled_read_"$(basename -- ${file_processed_genome})".fasta
 	done
 fi
-cat $FILENAME/sampled_read_* >> $FILENAME/sampled_read.fasta
-python $home/util/reindex.py -i $FILENAME/sampled_read.fasta
+cat ${FILENAME}/sampled_read_* >> ${FILENAME}/sampled_read.fasta
+python ${home}/util/reindex.py -i ${FILENAME}/sampled_read.fasta
 echo "Finished the preprocessing step!"
 
 # pore model translation
 # convert the signal to the original range
 # signal duplication 
 # done within pore model
-rm -rf $FILENAME/signal/*
+rm -rf ${FILENAME}/signal/*
 if [ $SIG_OUT -eq 1 ]
 then
-	mkdir -p $FILENAME/signal
+	mkdir -p ${FILENAME}/signal
 fi
-rm -rf $FILENAME/align/*
+rm -rf ${FILENAME}/align/*
 if [ $ALIGN_OUT -eq 1 ]
 then
-	mkdir -p $FILENAME/align
+	mkdir -p ${FILENAME}/align
 fi
 
 #--------- determine running mode -----------#
@@ -346,40 +346,40 @@ echo "Key parameters for simulation are shown below "
 echo "    event_std    : $EVENT_STD "
 echo "    filter_freq  : $FILTER_FREQ "
 echo "    signal_std   : $NOISE_STD "
-rm -rf $FILENAME/fast5/*
-mkdir -p $FILENAME/fast5
+rm -rf ${FILENAME}/fast5/*
+mkdir -p ${FILENAME}/fast5
 if [ $SIMULATOR_MODE -eq 0 ]
 then
 	echo "Running the context-dependent pore model..."
 	#-> context-dependent simulator
 	source activate tensorflow_cdpm
-	export DeepSimulatorHome=$home
-	python2 $home/pore_model/src/context_simulator.py \
-		-i $FILENAME/sampled_read.fasta \
-		-p $FILENAME/signal/$PREFIX \
-		-l $FILENAME/align/$PREALI \
+	export DeepSimulatorHome=${home}
+	python2 ${home}/pore_model/src/context_simulator.py \
+		-i ${FILENAME}/sampled_read.fasta \
+		-p ${FILENAME}/signal/$PREFIX \
+		-l ${FILENAME}/align/$PREALI \
 		-t $THREAD_NUM  \
 		-f $FILTER_FREQ -s $NOISE_STD \
 		-S $RANDOM_SEED \
 		-u $TUNE_SAMPLING \
-		-F $FILENAME/fast5 \
-		-T $home/util/$fast5_template \
+		-F ${FILENAME}/fast5 \
+		-T ${home}/util/$fast5_template \
 		$perf_mode $align_out $sig_out
 	source deactivate
 else
 	echo "Running the context-independent pore model..."
 	#-> contect-independent simulator
 	source activate tensorflow_cdpm
-	python2 $home/pore_model/src/kmer_simulator.py \
-		-i $FILENAME/sampled_read.fasta \
-		-p $FILENAME/signal/$PREFIX \
-		-l $FILENAME/align/$PREALI \
-		-t $THREAD_NUM -m $home/pore_model/model/$model_file \
+	python2 ${home}/pore_model/src/kmer_simulator.py \
+		-i ${FILENAME}/sampled_read.fasta \
+		-p ${FILENAME}/signal/$PREFIX \
+		-l ${FILENAME}/align/$PREALI \
+		-t $THREAD_NUM -m ${home}/pore_model/model/$model_file \
 		-e $EVENT_STD -f $FILTER_FREQ -s $NOISE_STD \
 		-S $RANDOM_SEED \
 		-u $TUNE_SAMPLING \
-		-F $FILENAME/fast5 \
-		-T $home/util/$fast5_template \
+		-F ${FILENAME}/fast5 \
+		-T ${home}/util/$fast5_template \
 		$perf_mode $align_out $sig_out
 	source deactivate
 fi
@@ -390,21 +390,21 @@ echo "Finished generate the simulated signals and fast5 files!"
 guppy=guppy_3.1.5
 # basecalling using guppy_gpu by dfault
 echo "Running Basecalling..."
-FAST5_DIR="$FILENAME/fast5"
-FASTQ_DIR="$FILENAME/fastq"
-rm -rf $FASTQ_DIR/*
+FAST5_DIR="${FILENAME}/fast5"
+FASTQ_DIR="${FILENAME}/fastq"
+rm -rf ${FASTQ_DIR}/*
 mkdir -p $FASTQ_DIR
 # run different base-callers
 if [ $BASE_CALLER -eq 1 ]
 then
 	echo "   Basecalling with Guppy_GPU..."
-	$home/base_caller/$guppy/ont-guppy/bin/guppy_basecaller -r --input_path $FAST5_DIR \
+	${home}/base_caller/${guppy}/ont-guppy/bin/guppy_basecaller -r --input_path $FAST5_DIR \
 		--save_path $FASTQ_DIR -c dna_r9.4.1_450bps_hac.cfg \
 		-x auto
 elif [ $BASE_CALLER -eq 2 ]
 then
 	echo "   Basecalling with Guppy_CPU..."
-	$home/base_caller/$guppy/ont-guppy-cpu/bin/guppy_basecaller -r --input_path $FAST5_DIR \
+	${home}/base_caller/${guppy}/ont-guppy-cpu/bin/guppy_basecaller -r --input_path $FAST5_DIR \
 		--save_path $FASTQ_DIR -c dna_r9.4.1_450bps_hac.cfg \
 		--cpu_threads_per_caller $THREAD_NUM --num_callers 1
 else
@@ -421,25 +421,25 @@ echo "Basecalling finished!"
 echo "Checking the read accuracy..."
 if [ $BASE_CALLER -eq 3 ]
 then
-	cat $FILENAME/fastq/workspace/pass/*.fastq > $FILENAME/pass.fastq 2>$FILENAME/err
-	cat $FILENAME/fastq/workspace/fail/*.fastq > $FILENAME/fail.fastq 2>$FILENAME/err
+	cat ${FILENAME}/fastq/workspace/pass/*.fastq > ${FILENAME}/pass.fastq 2>${FILENAME}/err
+	cat ${FILENAME}/fastq/workspace/fail/*.fastq > ${FILENAME}/fail.fastq 2>${FILENAME}/err
 else
-	cat $FILENAME/fastq/*.fastq > $FILENAME/pass.fastq 2>$FILENAME/err
-	touch $FILENAME/fail.fastq
+	cat ${FILENAME}/fastq/*.fastq > ${FILENAME}/pass.fastq 2>${FILENAME}/err
+	touch ${FILENAME}/fail.fastq
 fi
-pass_num=`grep "^@" $FILENAME/pass.fastq | wc | awk '{print $1}'`
-fail_num=`grep "^@" $FILENAME/fail.fastq | wc | awk '{print $1}'`
-cat $FILENAME/pass.fastq $FILENAME/fail.fastq > $FILENAME/test.fastq
-$home/util/minimap2 -Hk19 -t $THREAD_NUM -c $FULLFILE \
-	$FILENAME/test.fastq 1> $FILENAME/mapping.paf 2> $FILENAME/err
-rm -f $FILENAME/err
-accuracy=`awk 'BEGIN{a=0;b=0}{a+=$10/$11;b++}END{print a/b}' $FILENAME/mapping.paf`
-totalnum=`grep "^@" $FILENAME/test.fastq | wc | awk '{print $1}'`
+pass_num=`grep "^@" ${FILENAME}/pass.fastq | wc | awk '{print $1}'`
+fail_num=`grep "^@" ${FILENAME}/fail.fastq | wc | awk '{print $1}'`
+cat ${FILENAME}/pass.fastq ${FILENAME}/fail.fastq > ${FILENAME}/test.fastq
+${home}/util/minimap2 -Hk19 -t $THREAD_NUM -c ${FULLFILE} \
+	${FILENAME}/test.fastq 1> ${FILENAME}/mapping.paf 2> ${FILENAME}/err
+rm -f ${FILENAME}/err
+accuracy=`awk 'BEGIN{a=0;b=0}{a+=$10/$11;b++}END{print a/b}' ${FILENAME}/mapping.paf`
+totalnum=`grep "^@" ${FILENAME}/test.fastq | wc | awk '{print $1}'`
 echo "Here is the mapping identity: $accuracy of $totalnum (pass $pass_num + fail $fail_num) reads passed base-calling."
-echo "$accuracy $totalnum $pass_num $fail_num" > $FILENAME/accuracy
+echo "$accuracy $totalnum $pass_num $fail_num" > ${FILENAME}/accuracy
 # remove temporary files
-rm -rf $FILENAME/fastq
-rm -f $FILENAME/test.fastq
+rm -rf ${FILENAME}/fastq
+rm -f ${FILENAME}/test.fastq
 
 #---------- exit -----------#
 exit 0
